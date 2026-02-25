@@ -1,17 +1,35 @@
-Role Name
-=========
+[TOC]
 
-A brief description of the role goes here.
+Role: openvpn
+==========
+
+openvpn role is created for deploy openvpn service.
+
+Copyright (C) 2023  Mikhail Shurutov
+
+This program is free software; you can redistribute it and/or
+modify it under the terms of the GNU General Public License
+as published by the Free Software Foundation; either version 2
+of the License, or any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with this program; if not, write to the Free Software
+Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301, USA.
 
 Requirements
 ------------
 
-Any pre-requisites that may not be covered by Ansible itself or the role should be mentioned here. For instance, if the role uses the EC2 module, it may be a good idea to mention in this section that the boto package is required.
+This role requires python v3 because python v2 is out of live.
 
 Role Variables
 --------------
 
-A description of the settable variables for this role should go here, including any variables that are in defaults/main.yml, vars/main.yml, and any variables that can/should be set via parameters to the role. Any variables that are read from other roles and/or the global scope (ie. hostvars, group vars, etc.) should be mentioned here as well.
+Role has many variables. For details see defaults/main.yml
 
 Dependencies
 ------------
@@ -30,7 +48,7 @@ Including an example of how to use your role (for instance, with variables passe
 License
 -------
 
-BSD
+[GPLv2](https://www.gnu.org/licenses/old-licenses/gpl-2.0.txt)
 
 Author Information
 ------------------

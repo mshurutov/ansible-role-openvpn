@@ -1,5 +1,7 @@
 [TOC]
 
+This role is under construction. Do not use it.
+
 Role: openvpn
 ==========
 

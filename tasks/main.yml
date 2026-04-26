@@ -44,7 +44,7 @@
   loop: "{{ common_ssl_keys | default([]) }}"
   loop_control:
     loop_var: csk
-  
+
 - name: Create SSL keys for servers
   tags: openvpn_ssl_keys
   ansible.builtin.include_role:
@@ -103,6 +103,8 @@
       block:
         - name: Copy keys and tls_auth files to servers
           tags: openvpn_ssl_keys
+          notify:
+            - Restart openvpn server
           block:
             - name: Copy SSL keys
               ansible.builtin.include_role:
@@ -121,8 +123,6 @@
               loop: "{{ openvpn_configs.servers | default([]) }}"
               loop_control:
                 loop_var: "server"
-          notify:
-            - Restart openvpn server
         - name: Create/modify server configs
           ansible.builtin.template:
             dest: "{{ openvpn_config_dir }}/server/{{ server.name }}.conf"

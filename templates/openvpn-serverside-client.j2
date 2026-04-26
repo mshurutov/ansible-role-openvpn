@@ -1,0 +1,36 @@
+{# SPDX-License-Identifier: GPL-2.0-or-later #}
+{# Any parameters #}
+{% if server.1.config_params is defined %}
+{% for param in server.1.server_config_params.items() %}
+{{ param.0 | regex_replace("_","-") }}{% if param.1 is defined %} {{ param.1 }}{% endif +%}
+{% endfor %}
+{% endif %}
+{% if server.1.pushes is defined %}
+{% for setting in server.1.pushes %}
+push "{{ setting }}"
+{% endfor %}
+{% endif %}
+{# Routers: Global routes are the routes that are applied on every node. #}
+{% if server.0.global_routes is defined %}
+{% for route in server.0.global_routes %}
+{% if server.0.global_routes_owner == server.1.name %}
+iroute {{ route }}
+{% else %}
+push "route {{ route }}"
+{% endif %}
+{% endfor %}
+{% endif %}
+{# Routers: local routers are the routers that applied on specified node. #}
+{% if server.0.local_routes is defined %}
+{% for lroutes in server.0.local_routes %}
+{% if server.1.name in lroutes.access_for %}
+{% for route in lroutes.routes %}
+route {{ route }}
+{% endfor %}
+{% elif server.1.name == lroutes.owner %}
+{% for route in lroutes.routes %}
+iroute {{ route }}
+{% endfor %}
+{% endif %}
+{% endfor %}
+{% endif %}

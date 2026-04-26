@@ -1,0 +1,32 @@
+{# SPDX-License-Identifier: GPL-2.0-or-later #}
+# openvpn 2.6.x version
+mode server
+{% for param in server.config_params.items() %}
+{{ param.0 | regex_replace("_","-") }}{% if param.1 is defined %} {{ param.1 }}{% endif +%}
+{% endfor %}
+{% if server.blocks is defined %}
+{% for block in server.blocks %}
+<{{ block.name }}>
+{% if block.head is defined %}{{ block.head }}{% endif +%}
+{{ block.body }}
+{% if block.foot is defined %}{{ block.foot }}{% endif +%}
+</{{ block.name }}>
+{% endfor %}
+{% endif %}
+{% if server.pushes is defined %}
+{% for setting in server.pushes %}
+push "{{ setting }}"
+{% endfor %}
+{% endif %}
+{% if server.global_routes is defined %}
+{% for route in server.global_routes %}
+route {{ route }}
+{% endfor %}
+{% endif %}
+{% if server.local_routes is defined %}
+{% for lroutes in server.local_routes %}
+{% for route in lroutes.routes %}
+route {{ route }}{% if lroutes.gateway is defined %} {{ lroutes.gateway }}{% endif +%}
+{% endfor %}
+{% endfor %}
+{% endif %}

@@ -1,3 +1,66 @@
-#SPDX-License-Identifier: MIT-0
+# SPDX-License-Identifier: GPL-2.0-or-later
 ---
 # defaults file for mshurutov.openvpn
+openvpn_files_dir: "{{ role_path }}/files"
+openvpn_templates_dir: "{{ role_path }}/templates"
+openvpn_vars_dir: "{{ role_path }}/vars"
+openvpn_config_dir: "/etc/openvpn"
+openvpn_tls_auth_path:
+# By default only package "openvpn" is needed for role
+openvpn_packages: []
+#  - "openvpn"
+# OpenVPN can be used in single or multiple instances mode.
+# And server and client in same time in multiple instances mode.
+# openvpn_server_config and openvpn_client_config are used for single mode;
+# openvpn_server_config:
+#   server: "{{ IP_Address }} {{ NetMask }}"
+#   dev: "tun"
+#   topology: "subnet"
+# openvpn_client_config:
+#   client:
+#   dev: "tun"
+# openvpn_configs is used for multiple instances mode. This is default behavior.
+# openvpn_service_name: "openvpn" # service name for single mode
+openvpn_configs: {}
+#   clients:
+#     - name: "client01"
+#       cert_in_config: true
+#       common_ssl_ca_cert:
+#       openvpn_privatekey_filename:
+#       openvpn_cert_filename:
+#       openvpn_tls_auth_path:
+#       config_params:
+#         dev: "tun"
+#   servers:
+#     - name: "server01"
+#       config_params:
+#         server: "192.168.0.0 255.255.255.0"
+#         dev: "tun"
+#         topology: "subnet"
+#       ccd: "ccd-server01"
+#       global_routes:
+#         - "192.168.1.0 255.255.255.0"
+#       global_routes_owner: "client01"
+#       local_routes:
+#         - owner: "client01"
+#           access_for:
+#             - "client02"
+#           routes:
+#             - "{{ route1 }}"
+#             - "{{ route2 }}"
+#         - owner: "client02"
+#           access_for:
+#             - "client03"
+#           routes:
+#             - "{{ route3 }}"
+#             - "{{ route4 }}"
+#       clients:
+#         - name: "client01"
+#           server_config_params:
+#             ifconfig-push: "192.168.0.2 255.255.255.0"
+#         - name: "client02"
+#           server_config_params:
+#             ifconfig-push: "192.168.0.3 255.255.255.0"
+#         - name: "client03"
+#           server_config_params:
+#             ifconfig-push: "192.168.0.4 255.255.255.0"

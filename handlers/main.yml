@@ -1,3 +1,158 @@
-#SPDX-License-Identifier: MIT-0
 ---
 # handlers file for mshurutov.openvpn
+# Handlers for single mode
+- name: Enable single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    enabled: true
+
+- name: Disable single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    enabled: false
+
+- name: Start single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    state: started
+
+- name: Restart single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    state: restarted
+
+- name: Reload single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    state: reloaded
+
+- name: Stop single openvpn
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "{{ openvpn_service_name }}"
+    state: stopped
+
+# Handlers for multiple instances mode
+- name: Enable openvpn server
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ item }}"
+    enabled: true
+  loop: "{{ openvpn_server.results |
+      selectattr('changed', 'equalto', true) |
+      map(attribute='server') |
+      map(attribute='name') | list | unique }}"
+
+- name: Enable openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ item }}"
+    enabled: true
+  loop: "{{ openvpn_client.results |
+      selectattr('changed', 'equalto', true) |
+      map(attribute='client') |
+      map(attribute='name') | list | unique }}"
+
+- name: Start openvpn server
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ server.name | default(server.0.name) }}"
+    state: started
+
+- name: Start openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ client.name }}"
+    state: started
+
+- name: Restart server after config
+  become: true
+  become_user: "root"
+  listen: "Restart openvpn server"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ item }}"
+    state: restarted
+  loop: "{{ openvpn_server.results | default([]) |
+      selectattr('changed', 'equalto', true) |
+      map(attribute='server') |
+      map(attribute='name') | list | unique }}"
+
+- name: Restart server after client serverside config
+  become: true
+  become_user: "root"
+  listen: "Restart openvpn server"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ item }}"
+    state: restarted
+  loop: "{{ openvpn_serverside_client.results | default([]) |
+      selectattr('changed', 'equalto', true) |
+      map(attribute='server') | flatten | selectattr('clients', 'defined') |
+      map(attribute='name') | list | unique }}"
+
+- name: Restart openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ item }}"
+    state: restarted
+  loop: "{{ openvpn_client.results |
+      selectattr('changed', 'equalto', true) |
+      map(attribute='client') |
+      map(attribute='name') | list }}"
+
+- name: Reload openvpn server
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ server.name | default(server.0.name) }}"
+    state: reloaded
+
+- name: Reload openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ client.name }}"
+    state: reloaded
+
+- name: Stop openvpn server
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ server.name | default(server.0.name) }}"
+    state: stopped
+
+- name: Stop openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ client.name }}"
+    state: stopped
+
+- name: Disable openvpn server
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-server@{{ server.name | default(server.0.name) }}"
+    enabled: false
+
+- name: Disable openvpn client
+  become: true
+  become_user: "root"
+  ansible.builtin.service:
+    name: "openvpn-client@{{ client.name }}"
+    enabled: false

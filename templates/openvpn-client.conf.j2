@@ -1,0 +1,39 @@
+{# SPDX-License-Identifier: GPL-2.0-or-later #}
+# openvpn 2.6.x version
+client
+{% for param in client.1.config_params.items()  %}
+{{ param.0 | regex_replace("_","-") }}{% if param.1 is defined %} {{ param.1 }}{% endif +%}
+{% endfor %}
+{% if client.1.blocks is defined %}
+{% for block in client.1.blocks %}
+<{{ block.name }}>
+{% if block.head is defined %}{{ block.head }}{% endif +%}
+{{ block.body }}
+{% if block.foot is defined %}{{ block.foot }}{% endif +%}
+</{{ block.name }}>
+{% endfor %}
+{% endif %}
+{% if client.1.routes is defined %}
+{% for route in client.1.routes %}
+route {{ route }}
+{% endfor %}
+{% endif %}
+{% if client.1.cert_in_config is defined and client.1.cert_in_config | bool %}
+<ca>
+{{ ssl_ca_cert_body }}
+</ca>
+<cert>
+{{ ssl_cert_body }}
+</cert>
+<key>
+{{ private_key_body }}
+</key>
+<tls-crypt>
+{{ tls_auth_body }}
+</tls-crypt>
+{% else %}
+ca {{ client.1.ssl_keys.ownca_path }}
+cert {{ client.1.ssl_keys.certs_dir }}/{{ client.1.ssl_keys.cert_filename }}
+key {{ client.1.ssl_keys.private_dir }}/{{ client.1.ssl_keys.privatekey_filename }}
+tls-crypt {{ client.1.ssl_keys.certs_dir }}/{{ client.1.ssl_keys.tls_crypt }}
+{% endif %}

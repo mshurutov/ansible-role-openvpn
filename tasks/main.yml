@@ -25,34 +25,33 @@
         state: "present_not_latest"
       loop: "{{ openvpn_packages | default([]) }}"
 
-# Check if CA is created and installed.
-# This tasks are separate because CA is used not only openvpn.
-# CA should be defined in common_ssl_keys variable.
+# Check if CA is created and installed on PKI server.
+# CA should be defined in common_ssl_keys variable on PKI servers.
 - name: Check if CA is created
   tags: openvpn_ssl_keys,openvpn_ssl_keys_ca
   ansible.builtin.include_role:
     name: "mshurutov.common"
     tasks_from: "ssl_keys.yml"
-  loop: "{{ common_ssl_keys | default([]) }}"
+  loop: "{{ hostvars[common_pki_server][common_ssl_keys] | default([]) }}"
   loop_control:
-    loop_var: csk
+    loop_var: "csk"
 - name: Put CA in place
   tags: openvpn_ssl_keys,openvpn_ssl_keys_ca
   ansible.builtin.include_role:
     name: "mshurutov.common"
     tasks_from: "ssl_keys_put.yml"
-  loop: "{{ common_ssl_keys | default([]) }}"
+  loop: "{{ hostvars[common_pki_server][common_ssl_keys] | default([]) }}"
   loop_control:
-    loop_var: csk
+    loop_var: "csk"
 
 - name: Create SSL keys for servers
   tags: openvpn_ssl_keys
   ansible.builtin.include_role:
     name: "mshurutov.common"
     tasks_from: "ssl_keys.yml"
-  loop: "{{ openvpn_configs.servers | default([]) }}"
+  loop: "{{ openvpn_servers_config | default([]) }}"
   loop_control:
-    loop_var: server
+    loop_var: "server"
   vars:
     csk: "{{ server.ssl_keys }}"
 
@@ -61,11 +60,11 @@
   ansible.builtin.include_role:
     name: "mshurutov.common"
     tasks_from: "ssl_keys.yml"
-  loop: "{{ openvpn_configs.servers | default([]) | subelements('clients', skip_missing=True) }}"
+  loop: "{{ openvpn_servers_config | default([]) | subelements('clients', skip_missing=True) }}"
   loop_control:
-    loop_var: server
+    loop_var: "client"
   vars:
-    csk: "{{ server.1.ssl_keys }}"
+    csk: "{{ client.1.ssl_keys }}"
 
 - name: Create tls_auth files for servers
   tags: openvpn_ssl_keys
@@ -76,7 +75,7 @@
       - secret
       - "{{ server.config_params.tls_crypt }}"
     creates: "{{ server.config_params.tls_crypt }}"
-  loop: "{{ openvpn_configs.servers | default([]) }}"
+  loop: "{{ openvpn_servers_config | default([]) }}"
   loop_control:
     loop_var: "server"
 
@@ -85,11 +84,11 @@
   ansible.builtin.fetch:
     dest: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ server.config_params.tls_crypt | basename }}"
     flat: true
-    group: "root"
+#    group: "root"
     mode: "0644"
-    owner: "root"
+#    owner: "root"
     src: "{{ server.config_params.tls_crypt }}"
-  loop: "{{ openvpn_configs.servers | default([]) }}"
+  loop: "{{ openvpn_servers_config | default([]) }}"
   loop_control:
     loop_var: "server"
 
@@ -106,13 +105,14 @@
           notify:
             - Restart openvpn server
           block:
-            - name: Copy SSL keys
+            - name: Copy SSL keys into place
+              tags: openvpn_ssl_keys
               ansible.builtin.include_role:
                 name: "mshurutov.common"
                 tasks_from: "ssl_keys_put.yml"
-              loop: "{{ openvpn_configs.servers | default([]) }}"
+              loop: "{{ openvpn_servers_config | default([]) }}"
               loop_control:
-                loop_var: server
+                loop_var: "server"
               vars:
                 csk: "{{ server.ssl_keys }}"
             - name: Copy tls_auth to servers
@@ -120,7 +120,7 @@
                 dest: "{{ server.config_params.tls_crypt }}"
                 src: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ server.config_params.tls_crypt | basename }}"
                 mode: "0644"
-              loop: "{{ openvpn_configs.servers | default([]) }}"
+              loop: "{{ openvpn_servers_config | default([]) }}"
               loop_control:
                 loop_var: "server"
         - name: Create/modify server configs
@@ -128,7 +128,7 @@
             dest: "{{ openvpn_config_dir }}/server/{{ server.name }}.conf"
             mode: "0644"
             src: "{{ openvpn_templates_dir }}/openvpn-server.conf.j2"
-          loop: "{{ openvpn_configs.servers | default([]) }}"
+          loop: "{{ openvpn_servers_config | default([]) }}"
           loop_control:
             loop_var: "server"
             label: "{{ server.name }}"
@@ -138,10 +138,10 @@
             - Restart openvpn server
         - name: Create/modify server side client config
           ansible.builtin.template:
-            dest: "{{ openvpn_config_dir }}/{{ server.0.ccd }}/{{ server.1.name }}"
+            dest: "{{ server.0.config_params.client_config_dir }}/{{ server.1.name }}"
             mode: "0644"
             src: "{{ openvpn_templates_dir }}/openvpn-serverside-client.j2"
-          loop: "{{ openvpn_configs.servers | default([]) | subelements('clients', skip_missing=True) }}"
+          loop: "{{ openvpn_servers_config | default([]) | subelements('clients', skip_missing=True) }}"
           loop_control:
             loop_var: "server"
             label: "{{ server.0.name }}"
@@ -150,66 +150,43 @@
             - Restart openvpn server
         - name: Create/modify client config on the server
           tags: openvpn_client_config
-          block:
-            - name: Create/modify client config in central store
-              delegate_to: "localhost"
-              become: false
-              ansible.builtin.template:
-                dest: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ client.1.name }}.conf"
-                mode: "0644"
-                src: "{{ openvpn_templates_dir }}/openvpn-client.conf.j2"
-              loop: "{{ openvpn_configs.servers | default([]) | subelements('clients', skip_missing=True) }}"
-              loop_control:
-                loop_var: "client"
-              vars:
-                ssl_ca_cert_body: "{{ lookup('ansible.builtin.file',
-                  common_central_store + '/' +
-                  common_ssl_cs_path + '/' +
-                  client.1.ssl_keys.ssl_ca_cert) }}"
-                private_key_body: "{{ lookup('ansible.builtin.file',
-                  common_central_store + '/' +
-                  common_ssl_cs_path + '/' +
-                  client.1.ssl_keys.privatekey_filename) }}"
-                ssl_cert_body: "{{ lookup('ansible.builtin.file',
-                  common_central_store + '/' +
-                  common_ssl_cs_path + '/' +
-                  client.1.ssl_keys.cert_filename) }}"
-                tls_auth_body: "{{ lookup('ansible.builtin.file',
-                  common_central_store + '/' +
-                  common_ssl_cs_path + '/' +
-                  client.1.ssl_keys.tls_crypt) }}"
-    - name: Configure clients
-      tags: openvpn_client_config
-      block:
-        - name: Copy keys/certs files in place
-          when: client.cert_in_config is not defined or not (client.cert_in_config | bool)
-          ansible.builtin.include_role:
-            name: "mshurutov.common"
-            tasks_from: "ssl_keys_put.yml"
-          loop: "{{ openvpn_configs.clients | default([]) }}"
+          delegate_to: "localhost"
+          become: false
+          ansible.builtin.template:
+            dest: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ client.1.name }}.conf"
+            mode: "0644"
+            src: "{{ openvpn_templates_dir }}/openvpn-client.conf.j2"
+          loop: "{{ openvpn_servers_config | default([]) | subelements('clients', skip_missing=True) }}"
           loop_control:
             loop_var: "client"
           vars:
-            csk: "{{ client.ssl_keys }}"
-        - name: Copy  tls_auth files from central store
-          when: client.cert_in_config is not defined or not (client.cert_in_config | bool)
-          ansible.builtin.copy:
-            dest: "{{ openvpn_config_dir }}/client/{{ client.tls_crypt }}"
-            src: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ client.tls_crypt }}"
-            mode: "0644"
-          loop: "{{ openvpn_configs.clients | default([]) }}"
-          loop_control:
-            loop_var: "client"
-        - name: Copy config from central store in place on managed hosts
-          ansible.builtin.copy:
-            dest: "{{ openvpn_config_dir }}/client/{{ client.name }}.conf"
-            mode: "0644"
-            src: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ client.name }}.conf"
-          loop: "{{ openvpn_configs.clients | default([]) }}"
-          loop_control:
-            loop_var: "client"
-          register: openvpn_client
-          changed_when: client.vpn_permanent is defined and client.vpn_permanent | bool
-          notify:
-            - Enable openvpn client
-            - Restart openvpn client
+            ssl_ca_cert_body: "{{ lookup('ansible.builtin.file',
+              common_central_store + '/' +
+              common_ssl_cs_path + '/' +
+              client.1.ssl_keys.ssl_ca_cert) }}"
+            private_key_body: "{{ lookup('ansible.builtin.file',
+              common_central_store + '/' +
+              common_ssl_cs_path + '/' +
+              client.1.ssl_keys.privatekey_filename) }}"
+            ssl_cert_body: "{{ lookup('ansible.builtin.file',
+              common_central_store + '/' +
+              common_ssl_cs_path + '/' +
+              client.1.ssl_keys.cert_filename) }}"
+            tls_auth_body: "{{ lookup('ansible.builtin.file',
+              common_central_store + '/' +
+              common_ssl_cs_path + '/' +
+              client.1.ssl_keys.tls_crypt) }}"
+    - name: Copy client config from central store in place on managed hosts
+      tags: openvpn_client_config
+      ansible.builtin.copy:
+        dest: "{{ openvpn_config_dir }}/client/{{ client.name }}.conf"
+        mode: "0644"
+        src: "{{ common_central_store }}/{{ common_ssl_cs_path }}/{{ client.name }}.conf"
+      loop: "{{ openvpn_clients_config | default([]) }}"
+      loop_control:
+        loop_var: "client"
+      register: openvpn_client
+      changed_when: client.vpn_permanent is defined and client.vpn_permanent | bool
+      notify:
+        - Enable openvpn client
+        - Restart openvpn client
